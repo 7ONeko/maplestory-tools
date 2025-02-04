@@ -1,0 +1,153 @@
+/* General Body Style */
+body {
+  background-color: #2e2e2e; /* Dark background */
+  color: #dcdcdc; /* Light text */
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Main App Container */
+.App {
+  text-align: center;
+  width: 100%;
+  max-width: 800px;
+  padding: 20px;
+  background-color: #424242; /* Dark gray background */
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Header Styling */
+h2, h3 {
+  color: #dcdcdc;
+  margin-bottom: 20px;
+  font-size: 1.5em;
+}
+
+/* Form Inputs and Join button */
+input, button {
+  width: 100%;
+  font-size: 16px;
+  padding: 12px;
+  border-radius: 5px;
+  margin: 10px 0;
+  background-color: #555555; /* Dark input and button */
+  color: white;
+  border: none;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #666666;
+}
+
+button:disabled {
+  background-color: #333333;
+  cursor: not-allowed;
+}
+
+/* Grid Layout for Buttons */
+button {
+  display: inline-block;
+  margin: 5px;
+  width: 23%; /* For mobile, 4 buttons will fit per row */
+}
+
+/* Adjust Button Grid for Larger Screens */
+@media (min-width: 600px) {
+  button {
+    width: 20%; /* On desktop, 5 buttons per row */
+  }
+}
+
+/* Table Styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+th, td {
+  padding: 10px;
+  border: 1px solid #555;
+}
+
+th {
+  background-color: #333;
+}
+
+td {
+  background-color: #444;
+}
+
+td, th {
+  text-align: center;
+}
+
+/* Adjust for smaller devices */
+@media (max-width: 600px) {
+  /* Adjust input size and buttons */
+  input, button {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  button {
+    margin: 5px 0;
+  }
+  
+  /* Reduce the size of buttons for mobile */
+  button {
+    font-size: 14px;
+    padding: 8px 16px;
+    width: auto;
+    min-width: 80px;
+  }
+
+  /* Reset button styling on mobile */
+  .reset-button {
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+
+  .undo-button, .exit-button {
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+}
+
+/* Styling for Selected Number Button (Green) */
+button.selected {
+  background-color: #4CAF50;
+  border: none;
+  color: white;
+}
+
+/* Adjust Player List and Layer Progress */
+.player-list {
+  margin-top: 20px;
+  color: #dcdcdc;
+  font-size: 18px;
+}
+
+/* Responsive Design for Mobile */
+@media (max-width: 500px) {
+  .App {
+    padding: 15px;
+  }
+  table {
+    font-size: 0.8em;
+  }
+}
