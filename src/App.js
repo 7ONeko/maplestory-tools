@@ -37,7 +37,7 @@ function App() {
         setPlayers({});
       };
     }
-  }, [teamCode, gameRef, playersRef]);
+  }, [teamCode]);
 
   const joinRoom = () => {
     if (teamCode.length > 9 || !playerName) return; // 確保 Room ID 只有最多9個字元
@@ -248,12 +248,9 @@ function App() {
                 style={{
                   margin: "5px",
                   padding: "10px 20px",
-                  backgroundColor: disabledNumbers.has(num)
-                    ? "#ccc"
-                    : availableNumber === num
-                    ? "#5cb85c"
-                    : "#fff", // 合併重複的 backgroundColor
+                  backgroundColor: disabledNumbers.has(num) ? "#ccc" : "#fff",
                   cursor: disabledNumbers.has(num) ? "not-allowed" : "pointer",
+                  backgroundColor: availableNumber === num ? "#5cb85c" : "",
                 }}
               >
                 {num}
