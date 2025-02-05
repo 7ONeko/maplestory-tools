@@ -191,6 +191,10 @@ function App() {
           <button onClick={joinRoom} style={{ padding: "10px 20px" }}>
             Join
           </button>
+          {/* 🔹 Tool made by 70Neko */}
+          <p style={{ fontSize: "14px", color: "#aaa", marginTop: "10px" }}>
+            Tool made by <strong>70Neko</strong>
+          </p>
         </div>
       ) : (
         <>
