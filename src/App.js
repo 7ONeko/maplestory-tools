@@ -40,7 +40,10 @@ function App() {
   }, [teamCode]);
 
   const joinRoom = () => {
-    if (teamCode.length > 9 || !playerName) return; // 確保 Room ID 只有最多9個字元
+    if (teamCode.length < 1 || teamCode.length > 9 || !playerName) {
+      alert("Room ID must be between 1 and 9 characters, and nickname cannot be empty.");
+      return;
+    }
 
     onValue(playersRef, (snapshot) => {
       const players = snapshot.val();
