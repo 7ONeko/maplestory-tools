@@ -15,27 +15,27 @@ body {
 /* Main App Container */
 .App {
   text-align: center;
-  width: 100%;
-  max-width: 800px;
-  padding: 20px;
+  width: 95%;
+  max-width: 900px; /* 增加寬度，電腦端更舒適 */
+  padding: 30px; /* 增加內距，內容不擁擠 */
   background-color: #424242; /* Dark gray background */
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
 }
 
 /* Header Styling */
 h2, h3 {
   color: #dcdcdc;
   margin-bottom: 20px;
-  font-size: 1.5em;
+  font-size: 1.8em; /* 放大標題 */
 }
 
 /* Form Inputs and Join button */
 input, button {
   width: 100%;
-  font-size: 16px;
-  padding: 12px;
-  border-radius: 5px;
+  font-size: 18px;
+  padding: 14px;
+  border-radius: 6px;
   margin: 10px 0;
   background-color: #555555; /* Dark input and button */
   color: white;
@@ -45,11 +45,12 @@ input, button {
 
 button {
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, transform 0.1s;
 }
 
 button:hover {
   background-color: #666666;
+  transform: scale(1.05); /* 提供微小的放大效果，按鈕更有手感 */
 }
 
 button:disabled {
@@ -58,16 +59,25 @@ button:disabled {
 }
 
 /* Grid Layout for Buttons */
+.button-container {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 button {
-  display: inline-block;
-  margin: 5px;
-  width: 23%; /* For mobile, 4 buttons will fit per row */
+  width: 22%; /* 電腦端保持四個一行 */
+  font-size: 20px;
+  padding: 14px 20px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 /* Adjust Button Grid for Larger Screens */
-@media (min-width: 600px) {
+@media (min-width: 900px) {
   button {
-    width: 20%; /* On desktop, 5 buttons per row */
+    width: 18%; /* 放大電腦端按鈕 */
   }
 }
 
@@ -79,8 +89,9 @@ table {
 }
 
 th, td {
-  padding: 10px;
+  padding: 14px;
   border: 1px solid #555;
+  font-size: 18px;
 }
 
 th {
@@ -95,59 +106,71 @@ td, th {
   text-align: center;
 }
 
-/* Adjust for smaller devices */
+/* 調整玩家名稱清單 */
+.player-list {
+  margin-top: 20px;
+  color: #dcdcdc;
+  font-size: 20px;
+}
+
+/* 調整 Undo、Reset、Exit 按鈕間距 */
+.control-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.control-buttons button {
+  font-size: 18px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  transition: transform 0.1s;
+}
+
+.control-buttons button:hover {
+  transform: scale(1.05);
+}
+
+/* Responsive Design for Mobile */
 @media (max-width: 600px) {
-  /* Adjust input size and buttons */
-  input, button {
+  .App {
+    padding: 15px;
     width: 100%;
-    font-size: 14px;
-    padding: 10px;
   }
 
-  button {
-    margin: 5px 0;
+  /* 調整輸入框與按鈕 */
+  input, button {
+    font-size: 16px;
+    padding: 12px;
   }
-  
-  /* Reduce the size of buttons for mobile */
+
+  /* 按鈕縮小 */
   button {
-    font-size: 14px;
-    padding: 8px 16px;
+    font-size: 16px;
+    padding: 10px 16px;
     width: auto;
     min-width: 80px;
   }
 
-  /* Reset button styling on mobile */
-  .reset-button {
-    font-size: 12px;
-    padding: 8px 14px;
+  /* 調整 Undo, Reset, Exit 間距 */
+  .control-buttons {
+    flex-direction: column;
+    gap: 10px;
   }
 
-  .undo-button, .exit-button {
-    font-size: 12px;
-    padding: 8px 14px;
+  .control-buttons button {
+    width: 100%;
   }
-}
 
-/* Styling for Selected Number Button (Green) */
-button.selected {
-  background-color: #4CAF50;
-  border: none;
-  color: white;
-}
-
-/* Adjust Player List and Layer Progress */
-.player-list {
-  margin-top: 20px;
-  color: #dcdcdc;
-  font-size: 18px;
-}
-
-/* Responsive Design for Mobile */
-@media (max-width: 500px) {
-  .App {
-    padding: 15px;
-  }
+  /* 縮小表格字體 */
   table {
-    font-size: 0.8em;
+    font-size: 0.9em;
   }
+}
+
+/* 綠色高亮按鈕（當數字是唯一可選時） */
+button.selected {
+  background-color: #4CAF50 !important;
+  color: white;
 }
