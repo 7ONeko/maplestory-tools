@@ -127,9 +127,10 @@ function App() {
 
   const handleReset = () => {
     if (!teamCode) return;
-
+  
     const updatedData = { ...data };
-
+  
+    // 🔹 刪除所有玩家的數據
     for (let i = 0; i < NUM_LAYERS; i++) {
       if (updatedData[i]) {
         Object.keys(updatedData[i]).forEach((player) => {
@@ -137,17 +138,26 @@ function App() {
         });
       }
     }
-
-    set(gameRef, updatedData)
+  
+    // 🔹 讓所有玩家回到第一層
+    const resetPlayers = {};
+    Object.keys(players).forEach((player) => {
+      resetPlayers[player] = { currentLayer: 0 };
+    });
+  
+    set(ref(database, `games/${teamCode}`), {
+      ...updatedData,
+      players: resetPlayers, // 更新所有玩家的層數
+    })
       .then(() => {
-        setCurrentLayer(0);
+        setCurrentLayer(0); // 重設本地端的 currentLayer
         setIsComplete(false);
-        alert("The game data has been reset.");
+        alert("The game has been reset. All players are back to Layer 1.");
       })
       .catch((error) => {
-        console.error("Error resetting data:", error);
+        console.error("Error resetting game:", error);
       });
-  };
+  };  
 
   const getDisabledNumbers = () => {
     const usedNumbers = new Set();
