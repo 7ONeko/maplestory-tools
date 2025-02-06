@@ -130,7 +130,7 @@ function App() {
   
     const updatedData = { ...data };
   
-    // 🔹 刪除所有玩家的數據
+    // 🔹 清除所有玩家的層數數據
     for (let i = 0; i < NUM_LAYERS; i++) {
       if (updatedData[i]) {
         Object.keys(updatedData[i]).forEach((player) => {
@@ -142,22 +142,23 @@ function App() {
     // 🔹 讓所有玩家回到第一層
     const resetPlayers = {};
     Object.keys(players).forEach((player) => {
-      resetPlayers[player] = { currentLayer: 0 };
+      resetPlayers[player] = { currentLayer: 0 }; // 讓所有玩家的層數同步回到 0
     });
   
     set(ref(database, `games/${teamCode}`), {
       ...updatedData,
-      players: resetPlayers, // 更新所有玩家的層數
+      players: resetPlayers, // 🔹 讓 Firebase 記錄所有玩家回到第一層
+      currentLayer: 0, // 🔹 確保全局 currentLayer 也變為 0
     })
       .then(() => {
-        setCurrentLayer(0); // 重設本地端的 currentLayer
+        setCurrentLayer(0); // 本地端同步回到第一層
         setIsComplete(false);
         alert("The game has been reset. All players are back to Layer 1.");
       })
       .catch((error) => {
         console.error("Error resetting game:", error);
       });
-  };  
+  };    
 
   const getDisabledNumbers = () => {
     const usedNumbers = new Set();
