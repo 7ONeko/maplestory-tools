@@ -24,20 +24,30 @@ function App() {
           setData(value);
         }
       });
-
+  
       const playersListener = onValue(playersRef, (snapshot) => {
         const value = snapshot.val();
-        setPlayers(value || {}); // 更新玩家列表
+        setPlayers(value || {});
       });
-
+  
+      // 監聽 Reset 事件，清空本地數據並回到第一層
+      const resetTriggerRef = ref(database, `games/${teamCode}/resetTrigger`);
+      const resetListener = onValue(resetTriggerRef, (snapshot) => {
+        if (snapshot.exists()) {
+          console.log("Reset detected, clearing data and returning to layer 1.");
+          setData({}); // 清空本地數據
+          setCurrentLayer(0); // 回到第一層
+          setIsComplete(false); // 重置完成狀態
+        }
+      });
+  
       return () => {
         gameListener();
         playersListener();
-        setData({});
-        setPlayers({});
+        resetListener();
       };
     }
-  }, [teamCode]);
+  }, [teamCode]);       
 
   const joinRoom = () => {
     if (teamCode.length > 9 || !playerName) return; // 確保 Room ID 只有最多9個字元
@@ -128,37 +138,25 @@ function App() {
   const handleReset = () => {
     if (!teamCode) return;
   
-    const updatedData = { ...data };
+    const resetTime = Date.now(); // 取得當前時間戳記
   
-    // 🔹 清除所有玩家的層數數據
-    for (let i = 0; i < NUM_LAYERS; i++) {
-      if (updatedData[i]) {
-        Object.keys(updatedData[i]).forEach((player) => {
-          delete updatedData[i][player];
-        });
-      }
-    }
-  
-    // 🔹 讓所有玩家回到第一層
-    const resetPlayers = {};
-    Object.keys(players).forEach((player) => {
-      resetPlayers[player] = { currentLayer: 0 }; // 讓所有玩家的層數同步回到 0
-    });
-  
-    set(ref(database, `games/${teamCode}`), {
-      ...updatedData,
-      players: resetPlayers, // 🔹 讓 Firebase 記錄所有玩家回到第一層
-      currentLayer: 0, // 🔹 確保全局 currentLayer 也變為 0
-    })
+    // 清除 Firebase 中的所有數據，並保留 players 清單
+    set(gameRef, { players })
       .then(() => {
-        setCurrentLayer(0); // 本地端同步回到第一層
+        // 設定 resetTrigger，讓所有玩家回到第一層
+        return set(ref(database, `games/${teamCode}/resetTrigger`), resetTime);
+      })
+      .then(() => {
+        // 本地狀態也同步清除
+        setData({});
+        setCurrentLayer(0);
         setIsComplete(false);
-        alert("The game has been reset. All players are back to Layer 1.");
+        alert("Game has been reset. All players returned to layer 1.");
       })
       .catch((error) => {
-        console.error("Error resetting game:", error);
+        console.error("Error resetting data:", error);
       });
-  };    
+  };            
 
   const getDisabledNumbers = () => {
     const usedNumbers = new Set();
