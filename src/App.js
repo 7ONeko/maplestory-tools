@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { database, ref, set, onValue, remove } from "./firebase";
+import { database } from "./firebase";
+import { getDatabase, ref, set, remove, onValue, onDisconnect } from "firebase/database";
 import './App.css'; // 確保這一行存在
 
 const NUM_LAYERS = 10; // 總共有 10 層
@@ -17,7 +18,8 @@ function App() {
   const playersRef = ref(database, `games/${teamCode}/players`);
 
   useEffect(() => {
-    if (teamCode.length <= 9) {
+    if (teamCode.length > 0 && teamCode.length <= 9) {
+      // 監聽遊戲數據
       const gameListener = onValue(gameRef, (snapshot) => {
         const value = snapshot.val();
         if (value) {
@@ -25,12 +27,21 @@ function App() {
         }
       });
   
+      // 監聽玩家列表，並刪除最後一位玩家離開的房間
       const playersListener = onValue(playersRef, (snapshot) => {
         const value = snapshot.val();
-        setPlayers(value || {});
+        setPlayers(value || {}); // 更新玩家列表
+  
+        // 🔹 如果房間內沒有玩家，則刪除房間（包含 resetTrigger）
+        if (!value) {
+          console.log(`No players left in room ${teamCode}, deleting the room.`);
+          remove(gameRef)
+            .then(() => remove(ref(database, `games/${teamCode}/resetTrigger`))) // ✅ 確保 `resetTrigger` 也刪除
+            .then(() => console.log("Room deleted completely."));
+        }
       });
   
-      // 監聽 Reset 事件，清空本地數據並回到第一層
+      // 監聽 Reset 事件，讓所有玩家同步清除數據並回到第一層
       const resetTriggerRef = ref(database, `games/${teamCode}/resetTrigger`);
       const resetListener = onValue(resetTriggerRef, (snapshot) => {
         if (snapshot.exists()) {
@@ -41,29 +52,51 @@ function App() {
         }
       });
   
+      // 🔹 監聽瀏覽器關閉或刷新時自動執行 handleExit
+      const handleUnload = () => {
+        handleExit();
+      };
+      window.addEventListener("beforeunload", handleUnload);
+  
+      // 清除監聽
       return () => {
         gameListener();
         playersListener();
         resetListener();
+        window.removeEventListener("beforeunload", handleUnload);
       };
     }
-  }, [teamCode]);       
+  }, [teamCode, playerName]);          
 
   const joinRoom = () => {
-    if (teamCode.length > 9 || !playerName) return; // 確保 Room ID 只有最多9個字元
-
+    if (teamCode.length > 9 || !playerName) return; // 確保 Room ID 只有最多 9 個字元
+  
+    const db = getDatabase(); // 使用 getDatabase() 獲取 Firebase Database
+  
+    const playerRef = ref(db, `games/${teamCode}/players/${playerName}`);
+  
     onValue(playersRef, (snapshot) => {
       const players = snapshot.val();
-
+  
       if (players && players[playerName]) {
         alert("This name is already in use. Please choose another name.");
         return;
       }
-
+  
       setJoined(true);
-      set(ref(database, `games/${teamCode}/players/${playerName}`), true);
+  
+      // 設定玩家加入
+      set(playerRef, true).then(() => {
+        console.log(`${playerName} has joined the game.`);
+  
+        // ✅ 確保玩家離開時自動刪除自己
+        const onDisconnectRef = ref(db, `games/${teamCode}/players/${playerName}`);
+        onDisconnect(onDisconnectRef).remove().then(() => {
+          console.log(`${playerName} will be removed on disconnect.`);
+        });
+      });
     }, { onlyOnce: true });
-  };
+  };  
 
   const handleSelectNumber = (number) => {
     if (currentLayer >= NUM_LAYERS) return;
@@ -98,31 +131,38 @@ function App() {
 
   const handleExit = () => {
     if (!teamCode || !playerName) return;
-
+  
     const playerRef = ref(database, `games/${teamCode}/players/${playerName}`);
     
     remove(playerRef)
       .then(() => {
         const updatedData = { ...data };
-
+  
+        // 🔹 刪除該玩家的所有遊戲數據
         for (let i = 0; i < NUM_LAYERS; i++) {
           if (updatedData[i]?.[playerName]) {
             delete updatedData[i][playerName];
           }
         }
-
+  
         return set(gameRef, updatedData);
       })
       .then(() => {
-        return remove(playerRef);
+        return remove(playerRef); // 再次確保該玩家數據被刪除
       })
       .then(() => {
         onValue(playersRef, (snapshot) => {
           if (!snapshot.exists()) {
-            remove(gameRef);
+            console.log(`No players left, deleting room ${teamCode}.`);
+            remove(gameRef).then(() => console.log("Room deleted completely."));
           }
-        });
-
+        }, { onlyOnce: true });
+      })
+      .then(() => {
+        // ✅ 確保 `resetTrigger` 也被刪除
+        remove(ref(database, `games/${teamCode}/resetTrigger`));
+  
+        // 🔹 清空本地狀態
         setJoined(false);
         setTeamCode("");
         setPlayerName("");
@@ -133,7 +173,7 @@ function App() {
       .catch((error) => {
         console.error("Error removing player:", error);
       });
-  };
+  };  
 
   const handleReset = () => {
     if (!teamCode) return;
