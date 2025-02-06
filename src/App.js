@@ -23,180 +23,232 @@ function App() {
       const gameListener = onValue(gameRef, (snapshot) => {
         const value = snapshot.val();
         if (value) {
-          setData(value);
+          setData(value.data || {}); // 確保更新層數數據
         }
       });
   
-      // 監聽玩家列表，並刪除最後一位玩家離開的房間
+      // 監聽玩家列表
       const playersListener = onValue(playersRef, (snapshot) => {
         const value = snapshot.val();
         setPlayers(value || {}); // 更新玩家列表
   
-        // 🔹 如果房間內沒有玩家，則刪除房間（包含 resetTrigger）
-        if (!value) {
-          console.log(`No players left in room ${teamCode}, deleting the room.`);
+        // 🔹 檢查所有玩家是否都 offline
+        if (value) {
+          const onlinePlayers = Object.values(value).filter((player) => player.online);
+  
+          // 如果所有玩家都 offline 或 `players` 變為空，刪除房間
+          if (onlinePlayers.length === 0) {
+            console.log(`No online players left, deleting room ${teamCode}.`);
+            remove(gameRef)
+              .then(() => remove(ref(database, `games/${teamCode}/resetTrigger`))) // 確保刪除 resetTrigger
+              .then(() => console.log("Room deleted completely."))
+              .catch((error) => console.error("Error deleting room:", error));
+          }
+        } else {
+          // 如果玩家列表為空，也刪除房間
+          console.log(`Player list empty, deleting room ${teamCode}.`);
           remove(gameRef)
-            .then(() => remove(ref(database, `games/${teamCode}/resetTrigger`))) // ✅ 確保 `resetTrigger` 也刪除
-            .then(() => console.log("Room deleted completely."));
+            .then(() => remove(ref(database, `games/${teamCode}/resetTrigger`))) // 確保刪除 resetTrigger
+            .then(() => console.log("Room deleted completely."))
+            .catch((error) => console.error("Error deleting room:", error));
         }
       });
   
-      // 監聽 Reset 事件，讓所有玩家同步清除數據並回到第一層
+      // 監聽 Reset 事件
       const resetTriggerRef = ref(database, `games/${teamCode}/resetTrigger`);
       const resetListener = onValue(resetTriggerRef, (snapshot) => {
         if (snapshot.exists()) {
           console.log("Reset detected, clearing data and returning to layer 1.");
-          setData({}); // 清空本地數據
-          setCurrentLayer(0); // 回到第一層
+          setData(Array.from({ length: NUM_LAYERS }, () => ({}))); // 初始化本地數據
+          setCurrentLayer(0); // 回到第 1 層
           setIsComplete(false); // 重置完成狀態
         }
       });
-  
-      // 🔹 監聽瀏覽器關閉或刷新時自動執行 handleExit
-      const handleUnload = () => {
-        handleExit();
-      };
-      window.addEventListener("beforeunload", handleUnload);
   
       // 清除監聽
       return () => {
         gameListener();
         playersListener();
         resetListener();
-        window.removeEventListener("beforeunload", handleUnload);
       };
     }
-  }, [teamCode, playerName]);          
+  }, [teamCode]);                      
 
   const joinRoom = () => {
-    if (teamCode.length > 9 || !playerName) return; // 確保 Room ID 只有最多 9 個字元
+    if (teamCode.length > 9 || !playerName) return;
   
-    const db = getDatabase(); // 使用 getDatabase() 獲取 Firebase Database
-  
+    const db = getDatabase();
     const playerRef = ref(db, `games/${teamCode}/players/${playerName}`);
+    const dataRef = ref(db, `games/${teamCode}/data`);
   
     onValue(playersRef, (snapshot) => {
       const players = snapshot.val();
   
       if (players && players[playerName]) {
-        alert("This name is already in use. Please choose another name.");
-        return;
-      }
+        console.log(`${playerName} is reconnecting.`);
   
-      setJoined(true);
+        // 🔹 找出該玩家目前的層數進度
+        onValue(dataRef, (dataSnapshot) => {
+          const allData = dataSnapshot.val();
+          let lastLayer = 0;
   
-      // 設定玩家加入
-      set(playerRef, true).then(() => {
-        console.log(`${playerName} has joined the game.`);
+          if (allData) {
+            // 找到該玩家填寫數據的最後一層
+            Object.keys(allData).forEach((layer) => {
+              if (allData[layer]?.[playerName] !== undefined) {
+                lastLayer = Math.max(lastLayer, parseInt(layer) + 1);
+              }
+            });
+          }
   
-        // ✅ 確保玩家離開時自動刪除自己
-        const onDisconnectRef = ref(db, `games/${teamCode}/players/${playerName}`);
-        onDisconnect(onDisconnectRef).remove().then(() => {
-          console.log(`${playerName} will be removed on disconnect.`);
+          // 恢復當前層數並標記玩家為在線
+          setCurrentLayer(lastLayer);
+          setJoined(true);
+  
+          set(playerRef, { online: true })
+            .then(() => console.log(`${playerName} rejoined and resumed from layer ${lastLayer}.`))
+            .catch((error) => console.error("Error marking player as online:", error));
+        }, { onlyOnce: true });
+      } else {
+        // 如果是新玩家，加入房間
+        set(playerRef, { online: true }).then(() => {
+          console.log(`${playerName} has joined the game.`);
+          setJoined(true);
+          setCurrentLayer(0); // 新玩家從第 0 層開始
+  
+          // 設定 onDisconnect 確保離開時標記為 offline
+          onDisconnect(playerRef).set({ online: false }).then(() => {
+            console.log(`${playerName} will be marked as offline on disconnect.`);
+          });
         });
-      });
+      }
     }, { onlyOnce: true });
-  };  
+  };                
 
   const handleSelectNumber = (number) => {
     if (currentLayer >= NUM_LAYERS) return;
-
+  
+    // 🔹 先即時更新本地數據，避免等待 Firebase 影響 UI
     const updatedData = { ...data };
-    if (!updatedData[currentLayer]) updatedData[currentLayer] = {};
-
+    if (!updatedData[currentLayer]) {
+      updatedData[currentLayer] = {};
+    }
     updatedData[currentLayer][playerName] = number;
-    set(gameRef, updatedData);
-
+  
+    // 🔹 立即更新本地 UI，讓按鈕不會閃爍
+    setData(updatedData);
+    setCurrentLayer((prevLayer) => prevLayer + 1);
+  
     if (currentLayer + 1 === NUM_LAYERS) {
       setIsComplete(true);
     }
-
-    setCurrentLayer((prevLayer) => prevLayer + 1);
-  };
+  
+    // 🔹 再將數據寫入 Firebase（非同步）
+    set(ref(database, `games/${teamCode}/data/${currentLayer}`), updatedData[currentLayer])
+      .then(() => {
+        console.log(`Successfully updated layer ${currentLayer} in Firebase.`);
+      })
+      .catch((error) => {
+        console.error("Error updating layer data:", error);
+      });
+  };      
 
   const handleUndo = () => {
     if (currentLayer > 0) {
+      // 🔹 更新本地數據，解除上一層的按鈕鎖定
       const updatedData = { ...data };
       const lastLayer = currentLayer - 1;
-
+  
       if (updatedData[lastLayer]?.[playerName]) {
+        // 🔹 刪除上一層玩家的數字選擇（解除鎖定）
         delete updatedData[lastLayer][playerName];
       }
-
-      set(gameRef, updatedData);
-      setCurrentLayer(lastLayer);
-      setIsComplete(false);
+  
+      // 🔹 更新 Firebase 中的上一層數據
+      set(ref(database, `games/${teamCode}/data/${lastLayer}`), updatedData[lastLayer] || {})
+        .then(() => {
+          console.log(`Undo: Unlocked number on layer ${lastLayer}.`);
+        })
+        .catch((error) => {
+          console.error("Error updating layer data:", error);
+        });
+  
+      // 🔹 更新本地狀態
+      setData(updatedData);
+      setCurrentLayer(lastLayer); // 返回上一層
+      setIsComplete(false); // 清除完成狀態
+    } else {
+      console.log("Undo: Already at the first layer, cannot go back further.");
     }
-  };
+  };    
 
   const handleExit = () => {
     if (!teamCode || !playerName) return;
   
     const playerRef = ref(database, `games/${teamCode}/players/${playerName}`);
     
+    // 🔹 立即移除玩家資料
     remove(playerRef)
       .then(() => {
-        const updatedData = { ...data };
+        console.log(`${playerName} removed from players list.`);
   
-        // 🔹 刪除該玩家的所有遊戲數據
-        for (let i = 0; i < NUM_LAYERS; i++) {
-          if (updatedData[i]?.[playerName]) {
-            delete updatedData[i][playerName];
-          }
-        }
-  
-        return set(gameRef, updatedData);
-      })
-      .then(() => {
-        return remove(playerRef); // 再次確保該玩家數據被刪除
-      })
-      .then(() => {
+        // 🔹 檢查是否還有其他在線玩家
         onValue(playersRef, (snapshot) => {
-          if (!snapshot.exists()) {
+          const players = snapshot.val();
+          const onlinePlayers = Object.values(players || {}).filter(
+            (player) => player.online
+          );
+  
+          if (onlinePlayers.length === 0) {
             console.log(`No players left, deleting room ${teamCode}.`);
-            remove(gameRef).then(() => console.log("Room deleted completely."));
+            
+            // 刪除整個房間數據
+            remove(gameRef).then(() =>
+              console.log("Room deleted completely.")
+            );
           }
         }, { onlyOnce: true });
-      })
-      .then(() => {
-        // ✅ 確保 `resetTrigger` 也被刪除
-        remove(ref(database, `games/${teamCode}/resetTrigger`));
-  
-        // 🔹 清空本地狀態
-        setJoined(false);
-        setTeamCode("");
-        setPlayerName("");
-        setData({});
-        setCurrentLayer(0);
-        setIsComplete(false);
       })
       .catch((error) => {
         console.error("Error removing player:", error);
       });
-  };  
+  
+    // 🔹 清空本地狀態
+    setJoined(false);
+    setTeamCode("");
+    setPlayerName("");
+    setData({});
+    setCurrentLayer(0);
+    setIsComplete(false);
+  };            
 
   const handleReset = () => {
     if (!teamCode) return;
   
     const resetTime = Date.now(); // 取得當前時間戳記
   
-    // 清除 Firebase 中的所有數據，並保留 players 清單
-    set(gameRef, { players })
+    // 🔹 初始化空的 `data` 結構，並保留玩家清單
+    const updatedGameState = {
+      players, // 保留玩家列表
+      data: Array.from({ length: NUM_LAYERS }, () => ({})), // 初始化空的樓層結構
+    };
+  
+    set(gameRef, updatedGameState)
       .then(() => {
-        // 設定 resetTrigger，讓所有玩家回到第一層
+        // 🔹 設定 resetTrigger，通知所有玩家
         return set(ref(database, `games/${teamCode}/resetTrigger`), resetTime);
       })
       .then(() => {
-        // 本地狀態也同步清除
-        setData({});
-        setCurrentLayer(0);
-        setIsComplete(false);
+        // 🔹 同步清空本地狀態
+        setData(updatedGameState.data); // 更新本地層數數據
+        setCurrentLayer(0); // 回到第 1 層
+        setIsComplete(false); // 重置完成狀態
         alert("Game has been reset. All players returned to layer 1.");
       })
       .catch((error) => {
         console.error("Error resetting data:", error);
       });
-  };            
+  };                
 
   const getDisabledNumbers = () => {
     const usedNumbers = new Set();
