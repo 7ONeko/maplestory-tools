@@ -14,7 +14,7 @@ const firebaseConfig = {
 
 initializeAppCheck(app, {
   provider: new ReCaptchaV3Provider(
-    "6Ld79XQsAAAAAAi6b5KYfaNjm15rvh-NAnIC5mQS"
+    "6LdUCXUsAAAAAC5Irp8p30QfVNGJMpB9-Xa6DaQI"
   ),
   isTokenAutoRefreshEnabled: true
 });
@@ -24,4 +24,5 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
 export { database, ref, set, onValue, remove, onDisconnect };
+
 
