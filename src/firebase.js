@@ -12,8 +12,16 @@ const firebaseConfig = {
   appId: "1:982792835397:web:a10a0254cd801565aeae2c"
 };
 
+initializeAppCheck(app, {
+  provider: new ReCaptchaV3Provider(
+    "6Ld79XQsAAAAAAi6b5KYfaNjm15rvh-NAnIC5mQS"
+  ),
+  isTokenAutoRefreshEnabled: true
+});
+
 // 🔥 初始化 Firebase
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
 export { database, ref, set, onValue, remove, onDisconnect };
+
